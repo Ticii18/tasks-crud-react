@@ -5,6 +5,9 @@ import { createAccessToken } from "../libs/jwt.js";
 export const register = async (req, res) => {
     const { email, password, username } = req.body;
     try {
+
+        const userFound= await User.findOne({email})
+        if (userFound) return res.status(400).json(["The email address is already"])
         const passwordHash = await bcrypt.hash(password, 10)
 
         const newUser = new User({
@@ -26,7 +29,7 @@ export const register = async (req, res) => {
 
 
     } catch (error) {
-        res.status(500).json({mesagge:error.mesagge})
+        res.status(500).json({message:error.message})
     }
 }
 export const login = async (req, res) => {
@@ -34,12 +37,12 @@ export const login = async (req, res) => {
     try {
         const userFound= await User.findOne({email})
 
-        if (!userFound) return res.status(404).json({mesagge:"user not found"});
+        if (!userFound) return res.status(404).json({message:"user not found"});
 
 
         const isMatch = await bcrypt.compare(password, userFound.password)
 
-        if(!isMatch) return res.status(404).json({mesagge:"Incorrect password"})
+        if(!isMatch) return res.status(400).json({message:"Incorrect password"})
 
         const token = await createAccessToken({id: userFound._id})
 
@@ -54,7 +57,7 @@ export const login = async (req, res) => {
 
 
     } catch (error) {
-        res.status(500).json({mesagge:error.mesagge})
+        res.status(500).json({message:error.message})
     }
 }
 
@@ -66,6 +69,18 @@ export const logout = (req, res) => {
     return res.sendStatus(200)
 }
 
-export const profile = (req, res) => {
+export const profile = async (req, res) => {
+    const userFound = await User.findById(req.user.id)
+
+    if(!userFound) return res.status(400).json({message:'user not found'})
+
+    return res.json({
+        id: userFound.id,
+        username: userFound.username,
+        email: userFound.email,
+        createdAt: userFound.createdAt,
+        updateAt: userFound.updatedAt
+    })
+
     res.send('profile')
 }
