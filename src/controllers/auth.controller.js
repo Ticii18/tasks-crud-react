@@ -1,6 +1,8 @@
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs"
 import { createAccessToken } from "../libs/jwt.js";
+import jwt from 'jsonwebtoken'
+import { tokenSecret } from "../config.js";
 
 export const register = async (req, res) => {
     const { email, password, username } = req.body;
@@ -16,11 +18,15 @@ export const register = async (req, res) => {
             password: passwordHash,
         })
         const userSaver = await newUser.save();
-        const token = await createAccessToken({id: userSaver._id})
+        const token = await createAccessToken({id: userSaver.id})
 
-        res.cookie("token", token)
+        res.cookie("token", token,{
+            sameSite:'none',
+            secure:true,
+            httpOnly:false,
+        })
         res.json({
-            id: userSaver.id,
+            id: userSaver._id,
             username: userSaver.username,
             email: userSaver.email,
             createdAt: userSaver.createdAt,
@@ -48,7 +54,7 @@ export const login = async (req, res) => {
 
         res.cookie("token", token)
         res.json({
-            id: userFound.id,
+            id: userFound._id,
             username: userFound.username,
             email: userFound.email,
             createdAt: userFound.createdAt,
@@ -75,7 +81,7 @@ export const profile = async (req, res) => {
     if(!userFound) return res.status(400).json({message:'user not found'})
 
     return res.json({
-        id: userFound.id,
+        id: userFound._id,
         username: userFound.username,
         email: userFound.email,
         createdAt: userFound.createdAt,
@@ -83,4 +89,28 @@ export const profile = async (req, res) => {
     })
 
     res.send('profile')
+}
+
+export const verifyToken = async (req, res) => {
+    const {token} = req.cookies
+
+    if(!token) return res.status(401).json({message:'No token, authorization denied'})
+    
+    
+    jwt.verify(token, tokenSecret, async (err, user)=>{
+        if(err) return res.status(401),json({message:"Unauthorized"})
+        
+        const userFound = await User.findById(user.id)
+
+        if(!userFound) return res.status(401).json({message:'Unauthorized'})
+
+        return res.json({
+            id: userFound._id,
+            username: userFound.username,
+            email: userFound.email,
+        })
+    })
+
+
+
 }
